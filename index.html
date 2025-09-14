@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Huzaifa Shaikh's Tic Tac Toe Game</title>
+
+  <style>
+    :root{
+      --bg: #0b1220;
+      --panel: #131b2e;
+      --accent: #4f7cff;
+      --text: #e6edf3;
+      --muted: #9aa4b2;
+      --win: #19c37d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body{
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: radial-gradient(1200px 800px at 70% -10%, #1b2744 0, var(--bg) 40%);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      min-height: 100svh;
+      padding: 24px;
+    }
+
+    .card{
+      width: min(520px, 92vw);
+      background: linear-gradient(180deg, #141c30, #0f1729);
+      border: 1px solid #223055;
+      border-radius: 20px;
+      padding: 22px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    }
+
+    h1{ margin: 0 0 8px; 
+    font-weight: 700;
+    }
+    .sub{ 
+    color: var(--muted); 
+    margin-bottom: 16px; 
+    font-size: .95rem; 
+    }
+
+    .board{
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 16px 0 12px;
+    }
+
+    .cell{
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      border: 1px solid #2a385f;
+      border-radius: 16px;
+      background: var(--panel);
+      color: var(--text);
+      font-size: clamp(2.4rem, 12vw, 3.4rem);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      font-weight: 800;
+      transition: transform .08s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
+      user-select: none;
+    }
+
+    .cell:hover{ 
+    transform: translateY(-2px); 
+    border-color: #3550a3; 
+    box-shadow: 0 6px 18px rgba(79,124,255,.22); 
+    }
+    .cell[disabled]{
+     cursor: not-allowed; opacity: .7; 
+     transform: none; 
+     box-shadow: none; 
+     }
+    .cell.win{ 
+    outline: 2px solid var(--win); 
+    background: #0f1f1a; 
+    }
+
+    .status{ 
+    display:flex; 
+    align-items:center; 
+    justify-content:space-between; 
+    gap:10px; 
+    margin:4px 0 14px; 
+    }
+    .badge{
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid #2a385f;
+      background:#111a2c;
+      color:var(--muted);
+      font-weight:600;
+      font-size:.9rem;
+    }
+    .badge strong{
+     color:var(--text); 
+     }
+
+    .actions{
+     display:flex; 
+     gap:10px;
+     }
+    button.primary, .ghost{
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid #2a385f;
+      font-weight:700;
+      letter-spacing:.2px;
+      background:#121b2e;
+      color:var(--text);
+      cursor:pointer;
+      transition: transform .06s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
+    }
+    button.primary:hover, .ghost:hover{ 
+        transform: translateY(-1px);
+         border-color:#3550a3; 
+         box-shadow: 0 6px 18px rgba(79,124,255,.18);
+     }
+    .ghost{
+         background: transparent;
+          color:var(--muted); 
+        }
+
+    footer{ 
+        color:var(--muted); 
+        font-size:.85rem; 
+        margin-top:10px;
+     }
+    footer kbd{
+         background:#0f1729; 
+         border:1px solid #2a385f; 
+         padding:2px 6px; 
+         border-radius:6px; 
+         font-size:.8rem;
+         }
+
+    @media (prefers-reduced-motion: reduce){ .cell, button { transition: none; } }
+
+    /* Toast styles */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #223055;
+      color: var(--text);
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-size: .9rem;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      pointer-events: none;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+
+<body>
+  <main class="card" role="application" aria-label="Tic-Tac-Toe">
+    <h1>Huzaifa Shaikh's Tic Tac Toe Game</h1>
+    <div class="sub">Two players — X starts. Get three in a row to win.</div>
+
+    <div id="board" class="board" role="grid" aria-label="3 by 3 grid"></div>
+
+    <div class="status">
+      <div id="status" class="badge" aria-live="polite">Turn: <strong>X</strong></div>
+      <div class="actions">
+        <button id="restart" class="primary" type="button" title="Restart (R)">Play again</button>
+        <button id="undo" class="ghost" type="button" title="Undo last move (Z)">Undo</button>
+      </div>
+    </div>
+
+    <footer>Tips: Press <kbd>R</kbd> to restart • <kbd>Z</kbd> to undo.</footer>
+  </main>
+
+  <!-- Toast container -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const boardEl = document.getElementById('board');
+    const statusEl = document.getElementById('status');
+    const restartBtn = document.getElementById('restart');
+    const undoBtn = document.getElementById('undo');
+    const toastEl = document.getElementById('toast');
+
+    const winningCombos = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    let board = Array(9).fill('');
+    let current = 'X';
+    let gameOver = false;
+    const history = [];
+
+    function renderBoard() {
+      boardEl.innerHTML = '';
+      board.forEach((val, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'cell';
+        btn.type = 'button';
+        btn.id = `cell-${idx}`;
+        btn.setAttribute('role', 'gridcell');
+        btn.setAttribute('aria-label', `Cell ${idx + 1}`);
+        btn.textContent = val;
+        if (val || gameOver) btn.setAttribute('disabled', '');
+        btn.addEventListener('click', () => handleMove(idx));
+        boardEl.appendChild(btn);
+      });
+      updateStatus();
+    }
+
+    function updateStatus(message) {
+      if (message) { statusEl.innerHTML = message; return; }
+      if (gameOver) return;
+      statusEl.innerHTML = `Turn: <strong>${current}</strong>`;
+      showToast(`Player ${current}'s turn`);
+    }
+
+    function checkWinner() {
+      for (const [a,b,c] of winningCombos) {
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+          highlightWin([a,b,c]);
+          gameOver = true;
+          updateStatus(`Winner: <strong>${board[a]}</strong> 🏆`);
+          disableAll();
+          showToast(`Player ${board[a]} wins! 🏆`);
+          return board[a];
+        }
+      }
+      if (board.every(v => v)) {
+        gameOver = true;
+        updateStatus(`<strong>Draw</strong> 🤝`);
+        showToast(`It's a Draw 🤝`);
+        return 'draw';
+      }
+      return null;
+    }
+
+    function handleMove(index) {
+      if (gameOver || board[index]) return;
+      board[index] = current;
+      history.push(index);
+      const cell = document.getElementById(`cell-${index}`);
+      if (cell) { cell.textContent = current; cell.setAttribute('disabled', ''); }
+      const res = checkWinner();
+      if (!res) {
+        current = current === 'X' ? 'O' : 'X';
+        updateStatus();
+      }
+    }
+
+    function highlightWin(cells) {
+      cells.forEach(i => {
+        const el = document.getElementById(`cell-${i}`);
+        if (el) el.classList.add('win');
+      });
+    }
+
+    function disableAll() {
+      document.querySelectorAll('.cell').forEach(c => c.setAttribute('disabled', ''));
+    }
+
+    function restart() {
+      board = Array(9).fill('');
+      current = 'X';
+      gameOver = false;
+      history.length = 0;
+      renderBoard();
+    }
+
+    function undo() {
+      if (!history.length || gameOver) return;
+      const last = history.pop();
+      board[last] = '';
+      current = current === 'X' ? 'O' : 'X';
+      renderBoard();
+    }
+
+    // Toast helper
+    function showToast(message) {
+      toastEl.textContent = message;
+      toastEl.classList.add('show');
+      setTimeout(() => {
+        toastEl.classList.remove('show');
+      }, 2000);
+    }
+
+    window.addEventListener('keydown', e => {
+      if (e.key.toLowerCase() === 'r') restart();
+      if (e.key.toLowerCase() === 'z') undo();
+    });
+
+    restartBtn.addEventListener('click', restart);
+    undoBtn.addEventListener('click', undo);
+
+    renderBoard();
+  </script>
+</body>
+</html>
